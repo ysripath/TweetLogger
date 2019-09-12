@@ -1,6 +1,7 @@
 #pragma once
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include "TweetData.h"
 #include "Error.h"
 using namespace std;
@@ -10,6 +11,7 @@ class FileHandler
 private:
 	string _fileName;
 	TweetData* _data;
+	mutex mu;
 public:
 	FileHandler(string fileNameStr)
 	{
@@ -25,22 +27,29 @@ public:
 	StatusCode writeToFile(string data)
 	{
 		ofstream of;
-		try
+		if (mu.try_lock())
 		{
-			of.open(_fileName, std::ios::app);
-			of.clear();
-			string temp = data;
-			
-			of.write(temp.c_str(), temp.length());
-			of.close();
-		}
-		catch (exception ex)
-		{
-			string temp = "Exception while writing to file for -  ";
-			cout << temp << "\n";
-			if (of.is_open())
+
+
+			try
+			{
+				of.open(_fileName, std::ios::app);
+				of.clear();
+				string temp = data;
+
+				of.write(temp.c_str(), temp.length());
 				of.close();
-			return StatusCode::FILE_WRITE_FAIL;
+			}
+			catch (exception ex)
+			{
+				string temp = "Exception while writing to file for -  ";
+				cout << temp << "\n";
+				if (of.is_open())
+					of.close();
+				mu.unlock();
+				return StatusCode::FILE_WRITE_FAIL;
+			}
+			mu.unlock();
 		}
 
 		return StatusCode::FILE_WRITE_OK;
@@ -71,21 +80,26 @@ public:
 	StatusCode readFromFile(string &data)
 	{
 		ifstream ifSt;
-		try
+		if (mu.try_lock())
 		{
-			ifSt.open(_fileName);
-			while (!ifSt.eof())
+			try
 			{
-				char buf[10];
-				ifSt.getline(buf, 10, '\n');
-				data += buf;
-				data += '\n';
+				ifSt.open(_fileName);
+				while (!ifSt.eof())
+				{
+					char buf[10];
+					ifSt.getline(buf, 10, '\n');
+					data += buf;
+					data += '\n';
+				}
 			}
-		}
-		catch (exception ex)
-		{
-			cout << "Exception thrown during read \n";			
-			return StatusCode::FILE_READ_FAIL;
+			catch (exception ex)
+			{
+				cout << "Exception thrown during read \n";
+				mu.unlock();
+				return StatusCode::FILE_READ_FAIL;
+			}
+			mu.unlock();
 		}
 
 		return StatusCode::FILE_READ_OK;
