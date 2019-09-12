@@ -29,7 +29,7 @@ public:
 			", " + _data +
 			", " + _senderId;
 	}
-	friend string operator + (const string &str1, const TweetData* dataPtr)
+	friend string operator + (const string &str1, TweetData* dataPtr)
 	{
 		return str1 + dataPtr->printTweetData();
 	}
